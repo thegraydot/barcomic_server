@@ -7,6 +7,12 @@ import (
 	"testing"
 )
 
+func newTestServer() *Server {
+	s := NewServer(Config{})
+	s.typeBarcode = func(string) error { return nil }
+	return s
+}
+
 func TestHealthHandler(t *testing.T) {
 	table := []struct {
 		body       string
@@ -23,7 +29,8 @@ func TestHealthHandler(t *testing.T) {
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(v.method, "/heath", nil)
 
-			healthHandler(w, r)
+			s := newTestServer()
+			s.healthHandler(w, r)
 
 			if w.Code != v.statusCode {
 				t.Fatalf("Expected status code: %d, but got: %d", v.statusCode, w.Code)
@@ -54,6 +61,9 @@ func TestBarcodeHandler(t *testing.T) {
 		{`ERROR`, `7596060960150121101211`, http.MethodPost, 400},
 		{`ERROR`, `75960609601`, http.MethodPost, 400},
 		{`ERROR`, `759606096010`, http.MethodPost, 400},
+		// Invalid requests: partial matches (anchors check)
+		{`ERROR`, `abc759606096015xyz`, http.MethodPost, 400},
+		{`ERROR`, `759606096015 `, http.MethodPost, 400}, // trailing space
 		// Invalid requests: HTTP methods not allowed
 		{`ERROR`, `75960609601501211`, http.MethodGet, 400},
 		{`ERROR`, `75960609601501211`, http.MethodDelete, 400},
@@ -64,7 +74,8 @@ func TestBarcodeHandler(t *testing.T) {
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(v.method, "/barcode", strings.NewReader(v.requestBody))
 
-			barcodeHandler(w, r)
+			s := newTestServer()
+			s.barcodeHandler(w, r)
 
 			if w.Code != v.statusCode {
 				t.Fatalf("Expected status code: %d, but got: %d", v.statusCode, w.Code)
@@ -94,7 +105,8 @@ func TestOtherHandler(t *testing.T) {
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(v.method, v.url, nil)
 
-			otherHandler(w, r)
+			s := newTestServer()
+			s.otherHandler(w, r)
 
 			if w.Code != v.statusCode {
 				t.Fatalf("Expected status code: %d, but got: %d", v.statusCode, w.Code)
@@ -115,10 +127,12 @@ func TestValidateUpc(t *testing.T) {
 
 	for _, v := range table {
 		t.Run(v.barcode, func(t *testing.T) {
-			testResult := validateUpc(v.barcode)
-
+			testResult, err := validateUpc(v.barcode)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
 			if testResult != v.result {
-				t.Fatalf("Expected status code: %t, but got: %t", v.result, testResult)
+				t.Fatalf("Expected result: %t, but got: %t", v.result, testResult)
 			}
 		})
 	}

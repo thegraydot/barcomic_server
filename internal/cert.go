@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func GenerateTLSCertificate() tls.Certificate {
+func GenerateTLSCertificate(addr, port string) tls.Certificate {
 	// Generate an RSA key with 4096 bit size
 	key, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
@@ -35,7 +35,7 @@ func GenerateTLSCertificate() tls.Certificate {
 		log.Fatalf("Failed to generate serial number: %v", err)
 	}
 	notBefore := time.Now()
-	notAfter := notBefore.AddDate(0, 0, 1) // 1 hour
+	notAfter := notBefore.AddDate(1, 0, 0) // 1 year
 	keyUsage := x509.KeyUsageDigitalSignature | x509.KeyUsageKeyAgreement | x509.KeyUsageKeyEncipherment | x509.KeyUsageDataEncipherment
 	extKeyUsage := []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
 
@@ -43,9 +43,9 @@ func GenerateTLSCertificate() tls.Certificate {
 	template := x509.Certificate{
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
-			CommonName:         config.addr + ":" + config.port,
+			CommonName:         addr + ":" + port,
 			Country:            []string{"NZ"},
-			Organization:       []string{"thegraydot.io"},
+			Organization:       []string{"thegraydot.com"},
 			OrganizationalUnit: []string{"barcomic"},
 		},
 		SignatureAlgorithm:    x509.SHA256WithRSA,

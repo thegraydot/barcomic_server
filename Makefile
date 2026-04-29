@@ -1,44 +1,42 @@
-run:
-	@go run cmd/barcomic/main.go -v
+MODULE := github.com/thegraydot/barcomic
+BINARY := barcomic
 
-clean:
-	./scripts/build_clean.sh
+.PHONY: fmt fmt_check mod_check vet test test_verbose test_coverage ci build install clean snapshot release_check
 
-docker_run:
-	docker image build -t barcomic .; \
-	docker run --name barcomic -p 8080:80 barcomic
+fmt:
+	gofmt -w .
 
-docker_clean:
-	docker container stop barcomic; \
-	docker container rm barcomic; \
-	docker image rm barcomic
+fmt_check:
+	@test -z "$$(gofmt -l .)"
 
-install_golang_deps:
-	@go get ./internal/barcomic
+mod_check:
+	go mod tidy && git diff --exit-code go.mod go.sum
 
-install_linux_deps:
-	./scripts/install_linux_deps.sh
-
-update_golang_packages:
-	@go get -u ./...; go mod tidy
-
-format:
-	@gofmt -l .
+vet:
+	go vet ./...
 
 test:
-	@go test -v ./internal/barcomic
+	go test -race -count=1 ./...
 
-coverage:
-	@go test -cover ./internal/barcomic
+test_verbose:
+	go test -race -count=1 -v ./...
 
-build_linux:
-	./scripts/build_linux.sh
+test_coverage:
+	go test -race -count=1 -coverpkg=./internal/... -coverprofile=coverage.out ./...
 
-build_windows:
-	./scripts/build_windows.sh
+ci: fmt_check mod_check vet test
 
-build_darwin:
-	./scripts/build_darwin.sh
+build:
+	go build -ldflags="-s -w -X $(MODULE)/cmd.Version=dev" -o bin/$(BINARY) .
 
-release:
-	./scripts/git_tag_and_release.sh
+install:
+	go install -ldflags="-s -w -X $(MODULE)/cmd.Version=dev" .
+
+clean:
+	rm -rf bin/ dist/
+
+snapshot:
+	goreleaser release --snapshot --clean
+
+release_check:
+	goreleaser check
