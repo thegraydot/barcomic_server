@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thegraydot/barcomic/internal"
 	"github.com/spf13/cobra"
+	"github.com/thegraydot/barcomic/internal"
 )
 
 var Version = "dev"
